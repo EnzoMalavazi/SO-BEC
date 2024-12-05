@@ -2,21 +2,20 @@
 #include <stdint.h>
 #include <stdlib.h>
 
-#define MBR_SIZE 512
-#define PARTITION_ENTRY_SIZE 16
-#define PARTITION_TABLE_OFFSET 446
-#define BOOT_SIGNATURE_OFFSET 510
+#define MBR_TAM 512 
+#define PART_TABLE 446 
+#define BOOT_SIG 510
 
 typedef struct {
-    uint8_t boot_flag;      // Indicador de boot (0x80 = ativa, 0x00 = inativa)
-    uint8_t chs_start[3];   // CHS de início
-    uint8_t type;           // Tipo da partição
-    uint8_t chs_end[3];     // CHS de fim
-    uint32_t lba_start;     // LBA do início da partição
-    uint32_t sector_count;  // Número de setores da partição
-} PartitionEntry;
+    uint8_t boot_flag;      // (0x80 = ativa, 0x00 = inativa)
+    uint8_t chs_start[3]; 
+    uint8_t type;         
+    uint8_t chs_end[3];     
+    uint32_t lba_start;     
+    uint32_t sector_count;  
+} PartEntry;
 
-void print_partition_info(PartitionEntry *entry, int index) {
+void print_partition_info(PartEntry *entry, int index) {
     printf("Partição %d:\n", index + 1);
     printf("  Ativa: %s\n", (entry->boot_flag == 0x80) ? "Sim" : "Não");
     printf("  Tipo: 0x%02X\n", entry->type);
@@ -27,37 +26,37 @@ void print_partition_info(PartitionEntry *entry, int index) {
 }
 
 int main(int argc, char *argv[]) {
+    FILE *file = fopen(argv[1], "rb");
+    
     if (argc != 2) {
         fprintf(stderr, "Uso: %s <arquivo_mbr>\n", argv[0]);
         return 1;
     }
-
-    FILE *file = fopen(argv[1], "rb");
-    if (!file) {
-        perror("Erro ao abrir arquivo");
-        return 1;
-    }
-
-    uint8_t mbr[MBR_SIZE];
-    if (fread(mbr, 1, MBR_SIZE, file) != MBR_SIZE) {
+    uint8_t mbr[MBR_TAM];
+    if (fread(mbr, 1, MBR_TAM, file) != MBR_TAM) {
         fprintf(stderr, "Erro ao ler o arquivo MBR\n");
         fclose(file);
         return 1;
     }
+    
+    if (!file) {
+        perror("Erro ao abrir");
+        return 1;
+    }
     fclose(file);
 
-    // Verifica a assinatura de boot
-    if (mbr[BOOT_SIGNATURE_OFFSET] != 0x55 || mbr[BOOT_SIGNATURE_OFFSET + 1] != 0xAA) {
-        fprintf(stderr, "O arquivo não contém uma MBR válida.\n");
+    // Verifica assinatura 
+    if (mbr[BOOT_SIG] != 0x55 || mbr[BOOT_SIG + 1] != 0xAA) {
+        fprintf(stderr, "Erro, não tem MBR válida.\n");
         return 1;
     }
 
-    printf("Assinatura de Boot: 0x%02X%02X (válida)\n\n", mbr[BOOT_SIGNATURE_OFFSET], mbr[BOOT_SIGNATURE_OFFSET + 1]);
+    printf("Assinatura de Boot: 0x%02X%02X (válida)\n\n", mbr[BOOT_SIG], mbr[BOOT_SIG + 1]);
 
     // Lê a tabela de partições
-    PartitionEntry *partition_table = (PartitionEntry *)(mbr + PARTITION_TABLE_OFFSET);
+    PartEntry *part_table = (PartEntry *)(mbr + PART_TABLE);
     for (int i = 0; i < 4; i++) {
-        print_partition_info(&partition_table[i], i);
+        print_partition_info(&part_table [i], i);
     }
 
     return 0;
